@@ -3,7 +3,7 @@ FROM python:3.10 as requirements-stage
 
 WORKDIR /tmp
 
-```Dockerfile
+RUN pip install "poetry==1.6.1" poetry-plugin-export
 
 COPY ./pyproject.toml ./poetry.lock* /tmp/
 
