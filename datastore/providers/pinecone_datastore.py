@@ -1,6 +1,7 @@
 import os
 from typing import Any, Dict, List, Optional
-import pinecone
+# import pinecone
+from pinecone import Pinecone, ServerlessSpec
 from pinecone import ServerlessSpec          # <- NUEVO: para crear índices Serverless
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 import asyncio
@@ -25,7 +26,8 @@ PINECONE_INDEX = os.environ.get("PINECONE_INDEX")              # p. ej. index1
 assert PINECONE_API_KEY and PINECONE_ENVIRONMENT and PINECONE_INDEX
 
 # ──────── Inicializa Pinecone ───────────────────────────────────────────────────
-pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
+# pinecone.init(api_key=PINECONE_API_KEY, environment=PINECONE_ENVIRONMENT)
+pc = Pinecone(api_key=PINECONE_API_KEY)
 
 UPSERT_BATCH_SIZE = 100
 EMBEDDING_DIMENSION = int(os.environ.get("EMBEDDING_DIMENSION", 256))
@@ -34,7 +36,7 @@ EMBEDDING_DIMENSION = int(os.environ.get("EMBEDDING_DIMENSION", 256))
 class PineconeDataStore(DataStore):
     def __init__(self):
         # ── 1. Crea el índice si no existe ──────────────────────────────────────
-        if PINECONE_INDEX not in pinecone.list_indexes():
+        if PINECONE_INDEX not in pc.list_indexes():
             fields_to_index = list(DocumentChunkMetadata.__fields__.keys())
 
             try:
@@ -42,7 +44,7 @@ class PineconeDataStore(DataStore):
                     f"Creating serverless index {PINECONE_INDEX} "
                     f"with metadata config {fields_to_index}"
                 )
-                pinecone.create_index(
+                pc.create_index(
                     name=PINECONE_INDEX,
                     dimension=EMBEDDING_DIMENSION,
                     metric="cosine",                      # <- añade la métrica
@@ -52,12 +54,12 @@ class PineconeDataStore(DataStore):
                         region="us-east-1",
                     ),
                 )
-                # pinecone.create_index(                 # <- BORRADO: pods clásicos
+                # pc.create_index(                 # <- BORRADO: pods clásicos
                 #     PINECONE_INDEX,
                 #     dimension=EMBEDDING_DIMENSION,
                 #     metadata_config={"indexed": fields_to_index},
                 # )
-                self.index = pinecone.Index(PINECONE_INDEX)
+                self.index = pc.Index(PINECONE_INDEX)
                 logger.info(f"Index {PINECONE_INDEX} created successfully")
             except Exception as e:
                 logger.error(f"Error creating index {PINECONE_INDEX}: {e}")
@@ -67,7 +69,7 @@ class PineconeDataStore(DataStore):
         else:
             try:
                 logger.info(f"Connecting to existing index {PINECONE_INDEX}")
-                self.index = pinecone.Index(PINECONE_INDEX)
+                self.index = pc.Index(PINECONE_INDEX)
                 logger.info(f"Connected to index {PINECONE_INDEX} successfully")
             except Exception as e:
                 logger.error(f"Error connecting to index {PINECONE_INDEX}: {e}")
